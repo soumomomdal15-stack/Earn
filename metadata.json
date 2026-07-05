@@ -1,0 +1,8 @@
+{
+  "name": "Campaign Panel",
+  "description": "A premium Android earning app featuring diverse tasks, offerwalls, secure withdrawals, and a powerful admin panel for seamless management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

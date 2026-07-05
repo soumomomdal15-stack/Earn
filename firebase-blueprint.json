@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Premium user data including device fingerprint, KYC, and balances",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique auth uid of the user" },
+        "email": { "type": "string", "description": "Active Gmail/Google authenticated email" },
+        "displayName": { "type": "string", "description": "Full name of the earning account owner" },
+        "referralCode": { "type": "string", "description": "Unique referral code generated for invites" },
+        "referredBy": { "type": "string", "description": "Referral code of the direct code presenter" },
+        "streakDays": { "type": "integer", "description": "Continuous login streak tracker" },
+        "lastCheckIn": { "type": "string", "description": "ISO timestamp of last daily reward claim" },
+        "userRank": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Diamond"], "description": "Account experience rank" },
+        "isBanned": { "type": "boolean", "description": "Security flag to block fraudulent accounts" },
+        "kycStatus": { "type": "string", "enum": ["None", "Pending", "Approved", "Rejected"], "description": "Optional KYC validation status" },
+        "deviceFingerprint": { "type": "string", "description": "Local ID hash used to detect fake accounts and duplicates" },
+        "vipMember": { "type": "boolean", "description": "VIP premium earning pass status" },
+        "vpnActive": { "type": "boolean", "description": "Pre-login VPN detection flag to enforce strict Indian/Target market limits" },
+        "createdAt": { "type": "string", "description": "ISO account registration date" }
+      },
+      "required": ["uid", "email", "displayName", "referralCode", "userRank", "isBanned", "deviceFingerprint"]
+    },
+    "Task": {
+      "title": "Earning Task",
+      "description": "An install, view, scratch or spin task available to complete for rewards",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "rewardAmount": { "type": "number", "description": "Rewards paid in application credits" },
+        "category": { "type": "string", "enum": ["app_install", "web_visit", "youtube", "telegram", "quiz", "scratch", "spin", "rating", "watch_ad", "social"] },
+        "icon": { "type": "string" },
+        "url": { "type": "string" },
+        "verificationMethod": { "type": "string", "enum": ["auto", "timer", "screenshot", "manual"] },
+        "timerSeconds": { "type": "integer" },
+        "dailyLimit": { "type": "integer" },
+        "completionsToday": { "type": "integer" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "title", "description", "rewardAmount", "category", "verificationMethod", "isActive"]
+    },
+    "Withdrawal": {
+      "title": "Payout Withdrawal Request",
+      "description": "Withdrawal tickets submitted by users to UPI, Paytm, Bank, or Crypto wallets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["upi", "paytm", "bank", "crypto"] },
+        "paymentDetails": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "requestedAt": { "type": "string" },
+        "processedAt": { "type": "string" },
+        "adminNote": { "type": "string" },
+        "paymentProofURL": { "type": "string" }
+      },
+      "required": ["id", "userId", "userEmail", "paymentMethod", "paymentDetails", "amount", "status", "requestedAt"]
+    },
+    "Transaction": {
+      "title": "User Credit Ledger Transaction",
+      "description": "Double-entry log tracking every single credit event, tasks completion, or code redemption",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["task", "daily_bonus", "referral", "withdraw_pending", "withdraw_refund", "withdraw_approve", "scratch", "spin", "lucky_draw", "promo_code", "badge_reward", "vip_purchase"] },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "userId", "amount", "type", "description", "timestamp"]
+    },
+    "Referral": {
+      "title": "Level Referral Relationship",
+      "description": "Level earnings tracking (Level 1, Level 2, Level 3) tree records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "referrerId": { "type": "string" },
+        "refereeId": { "type": "string" },
+        "refereeName": { "type": "string" },
+        "refereeEmail": { "type": "string" },
+        "bonusEarned": { "type": "number" },
+        "level": { "type": "integer", "enum": [1, 2, 3] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "referrerId", "refereeId", "level", "createdAt"]
+    },
+    "Notification": {
+      "title": "App Notice or Announcement Banner",
+      "description": "Urgent notifications or static banners set up by active admins",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["announcement", "alert", "update"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "message", "type", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Specific profiles indexed by Firebase Auth identity string"
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Active tasks inventory listing actions available for coins"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/Withdrawal" },
+      "description": "List of withdrawal requests requiring approval or processing"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Immutable balance adjustments record ledger"
+    },
+    "/referrals/{referralId}": {
+      "schema": { "$ref": "#/entities/Referral" },
+      "description": "Referral level payouts and signups mappings"
+    },
+    "/notifications/{noticeId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Global notices posted by Admins to user dashboards"
+    }
+  }
+}

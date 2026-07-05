@@ -1,0 +1,179 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Deny Catch-All (First Rule Block)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Admins are defined as having a document in /admins/{userId}, or matching administrative emails
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'admin@earnos.com' ||
+        request.auth.token.email == 'admin@campaignpanel.com' ||
+        request.auth.token.email.matches('.*admin.*')
+      );
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidId(userId) &&
+        incoming().balances.main <= 100 &&
+        incoming().balances.bonus == 0 &&
+        incoming().balances.referral == 0 &&
+        incoming().vipMember == false &&
+        incoming().isBanned == false &&
+        incoming().vpnActive == false;
+        
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        // No balance tempering, no promotion, no ban override, no VPN override
+        !incoming().diff(existing()).affectedKeys().hasAny(['balances', 'vipMember', 'isBanned', 'userRank', 'vpnActive']) &&
+        // Only allow transition to Pending from None for KYC status
+        (!incoming().diff(existing()).affectedKeys().hasAny(['kycStatus']) || (existing().kycStatus == 'None' && incoming().kycStatus == 'Pending')) &&
+        // General updates to details (streak days, display name, device fingerprint)
+        incoming().displayName is string && incoming().displayName.size() <= 128
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 2. Tasks collection
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(taskId);
+    }
+
+    // 3. Withdrawals collection
+    match /withdrawals/{withdrawalId} {
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isOwner(incoming().userId) && isValidId(withdrawalId) &&
+        incoming().id == withdrawalId &&
+        incoming().status == 'pending' &&
+        incoming().amount > 0;
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
+    }
+
+    // 4. Transactions collection
+    match /transactions/{transactionId} {
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(transactionId) && (
+        isAdmin() || (
+          isOwner(incoming().userId) &&
+          incoming().amount <= 100 &&
+          incoming().type in ['task', 'daily_bonus', 'referral', 'promo_code', 'scratch', 'spin']
+        )
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    // 5. Referrals collection
+    match /referrals/{referralId} {
+      allow get: if isOwner(resource.data.referrerId) || isOwner(resource.data.refereeId) || isAdmin();
+      allow list: if isSignedIn() && (resource.data.referrerId == request.auth.uid || resource.data.refereeId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && incoming().refereeId == request.auth.uid &&
+        incoming().referrerId != incoming().refereeId &&
+        isValidId(referralId);
+      allow update, delete: if isAdmin();
+    }
+
+    // 6. Notifications collection
+    match /notifications/{noticeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(noticeId);
+    }
+
+    // 7. Offerwalls collection
+    match /offerwalls/{offerwallId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(offerwallId);
+    }
+
+    // 8. PromoCodes collection
+    match /promoCodes/{promoCodeId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin() && isValidId(promoCodeId);
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        incoming().code == existing().code &&
+        incoming().rewardAmount == existing().rewardAmount &&
+        incoming().maxUses == existing().maxUses &&
+        incoming().useCount == existing().useCount + 1 &&
+        incoming().claimedBy.size() == existing().claimedBy.size() + 1 &&
+        request.auth.uid in incoming().claimedBy
+      );
+    }
+
+    // 9. TaskCompletions collection
+    match /taskCompletions/{taskCompletionId} {
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isOwner(incoming().userId) && isValidId(taskCompletionId) &&
+        incoming().status == 'pending';
+      allow update: if isAdmin() || (
+        isOwner(resource.data.userId) &&
+        incoming().status == existing().status
+      );
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
+    }
+
+    // 10. PostbackLogs collection
+    match /postbackLogs/{logId} {
+      allow read, write: if isAdmin() && isValidId(logId);
+    }
+
+    // 11. Settings & AdConfig
+    match /settings/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(id);
+    }
+    match /adConfig/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(id);
+    }
+
+    // 12. DeletedIds collection
+    match /deletedIds/{deletedId} {
+      allow read: if isSignedIn();
+      allow write: if isValidId(deletedId) && (
+        isAdmin() || (
+          isSignedIn() && (
+            incoming().tableName == 'withdrawals' ||
+            incoming().tableName == 'taskCompletions'
+          )
+        )
+      );
+    }
+  }
+}
