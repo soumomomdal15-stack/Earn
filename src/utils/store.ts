@@ -145,7 +145,7 @@ export class CampaignStore {
     // This resolves the local/cloud routing race condition, avoids exhausting the
     // free-tier Firestore write/read quota, and guarantees that every client sees
     // admin task additions and other users' completions in real-time.
-    return false;
+    return true;
   }
 
   static isQuotaError(err: any): boolean {
