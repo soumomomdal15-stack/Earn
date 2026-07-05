@@ -1,7 +1,9 @@
-// Import the functions you need from the SDKs you need
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 import { initializeApp } from "firebase/app";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB6VmvDtFKYLgW9C_9WE-YoE3LNh19_utk",
   authDomain: "earnos-780db.firebaseapp.com",
@@ -11,5 +13,10 @@ const firebaseConfig = {
   appId: "1:469051623753:web:397a832378de1663603298"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+initializeApp(firebaseConfig);
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
