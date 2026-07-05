@@ -58,60 +58,26 @@ export class CampaignStore {
   static sseSource: EventSource | null = null;
   static changeListeners: Set<() => void> = new Set<() => void>();
 
-  static addChangeListener(listener: () => void) {
-    this.changeListeners.add(listener);
-    this.startSSE();
-  }
+  stat// SSE Real-time Updates disabled to prioritize Firestore
+static addChangeListener(listener: () => void) {
+  this.changeListeners.add(listener);
+}
 
-  static removeChangeListener(listener: () => void) {
-    this.changeListeners.delete(listener);
-  }
+static removeChangeListener(listener: () => void) {
+  this.changeListeners.delete(listener);
+}
 
-  static stopSSE() {
-    if (this.sseSource) {
-      this.sseSource.close();
-      this.sseSource = null;
-    }
-  }
+static stopSSE() {
+  // SSE is disabled
+}
 
-  static startSSE() {
-    if (this.sseSource) return;
+/* 
+// startSSE() and its event listeners are commented out
+static startSSE() {
+  // Logic disabled
+}
+*/
 
-    try {
-      this.sseSource = new EventSource('/api/db/events');
-      
-      const handleEvent = async () => {
-        console.log('[SSE] Database updated event received. Fetching latest data...');
-        await this.syncWithServer();
-        this.changeListeners.forEach(listener => {
-          try {
-            listener();
-          } catch (e) {
-            console.error('[SSE] Real-time change listener failure:', e);
-          }
-        });
-      };
-
-      this.sseSource.addEventListener('database_updated', handleEvent);
-      
-      this.sseSource.addEventListener('open', () => {
-        console.log('[SSE] Connection to real-time events established.');
-        this.changeListeners.forEach(listener => {
-          try {
-            listener();
-          } catch (e) {
-            console.error('[SSE] Real-time change listener failure:', e);
-          }
-        });
-      });
-
-      this.sseSource.onerror = (err) => {
-        console.warn('[SSE] EventSource connection warning (browser will auto-reconnect):', err);
-      };
-    } catch (e) {
-      console.warn('[SSE] EventSource initialization failed:', e);
-    }
-  }
 
   static loadPendingSavedIds() {
     try {
