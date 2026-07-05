@@ -233,7 +233,8 @@ static startSSE() {
       this.syncWithServer();
 
       // Start Server-Sent Events real-time database listener
-      this.startSSE();
+      // this.startSSE(); // Disabled to prioritize Firestore
+
 
     } catch (e) {
       console.error('CampaignStore Fail: Failed to initialize Storage.', e);
